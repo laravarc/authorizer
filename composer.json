@@ -1,0 +1,69 @@
+{
+    "name": "laravarc/authorizer",
+    "description": "RBAC engine for Laravel — Gate::before abilities, roles, and tenant-scoped authorization. Usable with or without laravarc/core.",
+    "type": "library",
+    "license": "MIT",
+    "homepage": "https://github.com/laravarc/authorizer",
+    "support": {
+        "issues": "https://github.com/laravarc/authorizer/issues",
+        "source": "https://github.com/laravarc/authorizer"
+    },
+    "keywords": [
+        "laravel",
+        "rbac",
+        "authorization",
+        "acl",
+        "permissions",
+        "roles",
+        "gate",
+        "policy"
+    ],
+    "require": {
+        "php": "^8.2",
+        "illuminate/support": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/contracts": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/console": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/database": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/auth": "^10.0|^11.0|^12.0|^13.0",
+        "illuminate/filesystem": "^10.0|^11.0|^12.0|^13.0"
+    },
+    "require-dev": {
+        "larastan/larastan": "^3.10",
+        "laravel/pint": "^1.29",
+        "orchestra/testbench": "^9.0|^10.0",
+        "pestphp/pest": "^3.0|^4.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Laravarc\\Authorizer\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Laravarc\\Authorizer\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "pest",
+        "format": "pint",
+        "analyse": "phpstan analyse"
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Laravarc\\Authorizer\\Providers\\AuthorizerServiceProvider"
+            ]
+        }
+    },
+    "config": {
+        "sort-packages": true,
+        "allow-plugins": {
+            "pestphp/pest-plugin": true
+        }
+    },
+    "suggest": {
+        "laravarc/core": "Required when registering AuthorizerCoreExtension for metadata-backed ability discovery."
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}

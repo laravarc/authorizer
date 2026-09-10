@@ -12,6 +12,7 @@ return new class extends Migration
     {
         Schema::create('larc_abilities', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('policy');
             $table->string('ability');
             $table->string('description')->nullable();
@@ -22,6 +23,7 @@ return new class extends Migration
 
         Schema::create('larc_roles', function (Blueprint $table): void {
             $table->id();
+            $table->uuid('uuid')->unique();
             $table->string('tenant_id')->nullable()->index();
             $table->string('name');
             $table->string('description')->nullable();

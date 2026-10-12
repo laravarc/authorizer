@@ -11,6 +11,19 @@ Works in any Laravel 10–13 application, with or without `laravarc/core`.
 - **Source of truth is code** — abilities are discovered from policy classes (or Core metadata), never created ad-hoc via a public `Ability::create()` API.
 - **Tenant-ready** — `tenant_id` on roles is a plain nullable id (no foreign key). Swap `TenantResolver` for multi-tenant apps.
 
+## Ability keys
+
+An ability key is the policy FQCN in dotted snake-case with the trailing `Policy` removed:
+
+| Policy class | Key |
+|--------------|-----|
+| `App\Policies\CustomerPolicy` | `app.policies.customer` |
+| `App\Modules\Admin\User\Policies\UserPolicy` | `app.modules.admin.user.policies.user` |
+
+The stored full key is `<policy-key>.<method>` (e.g. `app.policies.customer.delete`). Keys come
+from the FQCN, so they are globally unique and never collide — even when two policies share a
+basename in different namespaces.
+
 ## Installation
 
 ```bash

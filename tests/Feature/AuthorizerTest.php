@@ -13,7 +13,6 @@ use Laravarc\Authorizer\Providers\AuthorizerServiceProvider;
 use Laravarc\Authorizer\Resolvers\ClassMapAbilityRegistry;
 use Laravarc\Authorizer\Services\AbilitySyncService;
 use Laravarc\Authorizer\Services\AuthorizationService;
-use Laravarc\Authorizer\Support\AbilityIndexBuildException;
 use Laravarc\Authorizer\Support\AbilityIndexBuilder;
 use Laravarc\Authorizer\Support\NullTenantResolver;
 use Laravarc\Authorizer\Tests\Fixtures\Customer;
@@ -27,23 +26,29 @@ describe('Native ability discovery', function () {
         $registry = app(AbilityRegistry::class);
 
         $all = $registry->all();
+        $key = 'laravarc.authorizer.tests.fixtures.policies.customer';
 
-        expect($all)->toHaveKey('customer')
-            ->and($all['customer'])->toContain('view', 'update', 'delete', 'export')
-            ->and($registry->keyFor(CustomerPolicy::class))->toBe('customer')
-            ->and($registry->keyFor(Customer::class))->toBe('customer');
+        expect($all)->toHaveKey($key)
+            ->and($all[$key])->toContain('view', 'update', 'delete', 'export')
+            ->and($registry->keyFor(CustomerPolicy::class))->toBe($key)
+            ->and($registry->keyFor(Customer::class))->toBe($key);
     });
 
-    it('fails laravarc:authorizer cache when two policies share an ability key', function () {
-        $builder = new AbilityIndexBuilder(includeClasses: [
+    it('gives two same-basename policies in different namespaces distinct ability keys', function () {
+        $builder = new AbilityIndexBuilder;
+
+        $index = $builder->buildFrom([
             CustomerPolicy::class,
             DuplicateCustomerPolicy::class,
         ]);
 
-        expect(fn () => $builder->buildFrom([
-            CustomerPolicy::class,
-            DuplicateCustomerPolicy::class,
-        ]))->toThrow(AbilityIndexBuildException::class, 'Duplicate ability key [customer]');
+        expect($index['abilities'])
+            ->toHaveKey('laravarc.authorizer.tests.fixtures.policies.customer')
+            ->toHaveKey('laravarc.authorizer.tests.fixtures.duplicate.customer')
+            ->and($index['policies'][CustomerPolicy::class])
+            ->toBe('laravarc.authorizer.tests.fixtures.policies.customer')
+            ->and($index['policies'][DuplicateCustomerPolicy::class])
+            ->toBe('laravarc.authorizer.tests.fixtures.duplicate.customer');
     });
 });
 
@@ -168,7 +173,7 @@ describe('NullTenantResolver default', function () {
         $user = User::query()->create(['name' => 'U', 'email' => 'u@t.test']);
         Authorization::user($user)->assignRole('Clerk');
 
-        expect($user->hasAbility('customer.view'))->toBeTrue();
+        expect($user->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.view'))->toBeTrue();
     });
 });
 
@@ -196,8 +201,8 @@ describe('hasAbility tenant scoping (Decision 031)', function () {
         ]);
 
         expect(app(TenantResolver::class))->toBeInstanceOf(NullTenantResolver::class)
-            ->and($user->hasAbility('customer.view'))->toBeTrue()
-            ->and($user->hasAbility('customer.export'))->toBeTrue();
+            ->and($user->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.view'))->toBeTrue()
+            ->and($user->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.export'))->toBeTrue();
     });
 
     it('filters role abilities to TenantResolver::current when non-null', function () {
@@ -224,8 +229,8 @@ describe('hasAbility tenant scoping (Decision 031)', function () {
             }
         });
 
-        expect($user->hasAbility('customer.view'))->toBeTrue()
-            ->and($user->hasAbility('customer.export'))->toBeFalse();
+        expect($user->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.view'))->toBeTrue()
+            ->and($user->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.export'))->toBeFalse();
     });
 
     it('excludes NULL-tenant non-super roles when resolver is active; is_super still bypasses', function () {
@@ -260,10 +265,10 @@ describe('hasAbility tenant scoping (Decision 031)', function () {
             }
         });
 
-        expect($staff->hasAbility('customer.view'))->toBeTrue()
-            ->and($staff->hasAbility('customer.export'))->toBeFalse()
+        expect($staff->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.view'))->toBeTrue()
+            ->and($staff->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.export'))->toBeFalse()
             ->and($owner->isSuper())->toBeTrue()
-            ->and($owner->hasAbility('customer.delete'))->toBeTrue();
+            ->and($owner->hasAbility('laravarc.authorizer.tests.fixtures.policies.customer.delete'))->toBeTrue();
     });
 });
 
@@ -271,12 +276,12 @@ describe('Ability sync uuid', function () {
     it('assigns a non-null uuid on insertKeys', function () {
         $sync = app(AbilitySyncService::class);
 
-        $inserted = $sync->insertKeys(['customer.view']);
+        $inserted = $sync->insertKeys(['laravarc.authorizer.tests.fixtures.policies.customer.view']);
 
         expect($inserted)->toBe(1);
 
         $ability = Ability::query()
-            ->where('policy', 'customer')
+            ->where('policy', 'laravarc.authorizer.tests.fixtures.policies.customer')
             ->where('ability', 'view')
             ->firstOrFail();
 
@@ -303,7 +308,7 @@ describe('laravarc:authorizer sync replace', function () {
         app(AbilitySyncService::class)->insertNew();
 
         $ability = Ability::query()
-            ->where('policy', 'customer')
+            ->where('policy', 'laravarc.authorizer.tests.fixtures.policies.customer')
             ->where('ability', 'export')
             ->firstOrFail();
 
@@ -321,11 +326,11 @@ describe('laravarc:authorizer sync replace', function () {
             'ability_id' => $originalId,
         ]);
 
-        app(AbilitySyncService::class)->replaceMissing('customer.export', 'customer.renamed_export');
+        app(AbilitySyncService::class)->replaceMissing('laravarc.authorizer.tests.fixtures.policies.customer.export', 'laravarc.authorizer.tests.fixtures.policies.customer.renamed_export');
 
         $updated = Ability::query()->findOrFail($originalId);
 
-        expect($updated->policy)->toBe('customer')
+        expect($updated->policy)->toBe('laravarc.authorizer.tests.fixtures.policies.customer')
             ->and($updated->ability)->toBe('renamed_export')
             ->and(\Illuminate\Support\Facades\DB::table('larc_role_abilities')->where('ability_id', $originalId)->exists())->toBeTrue()
             ->and(\Illuminate\Support\Facades\DB::table('larc_user_abilities')->where('ability_id', $originalId)->exists())->toBeTrue();

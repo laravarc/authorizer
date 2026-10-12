@@ -15,7 +15,9 @@ use Throwable;
 /**
  * Discovers Policy classes and builds ability_key => methods (+ class maps).
  *
- * Native convention: CustomerPolicy → model Customer → key "customer".
+ * Native convention: the full FQCN in dotted snake_case, with the trailing
+ * "Policy" removed from the final segment (e.g. App\Policies\CustomerPolicy
+ * → "app.policies.customer"). FQCNs are globally unique, so keys never collide.
  * Does not use module namespaces (Core-specific).
  */
 final class AbilityIndexBuilder
@@ -63,8 +65,6 @@ final class AbilityIndexBuilder
         $policies = [];
         /** @var array<class-string, string> $models */
         $models = [];
-        /** @var array<string, class-string> $keyOwners */
-        $keyOwners = [];
 
         foreach ($classes as $class) {
             if (! $this->isPolicyClass($class)) {
@@ -73,16 +73,6 @@ final class AbilityIndexBuilder
 
             $key = $this->abilityKeyFromPolicy($class);
 
-            if (isset($keyOwners[$key]) && $keyOwners[$key] !== $class) {
-                throw new AbilityIndexBuildException(sprintf(
-                    'Duplicate ability key [%s] registered by [%s] and [%s].',
-                    $key,
-                    $keyOwners[$key],
-                    $class,
-                ));
-            }
-
-            $keyOwners[$key] = $class;
             $methods = $this->publicAbilityMethods($class);
             $abilities[$key] = $methods;
             $policies[$class] = $key;
@@ -107,13 +97,19 @@ final class AbilityIndexBuilder
      */
     public function abilityKeyFromPolicy(string $policyClass): string
     {
-        $short = class_basename($policyClass);
+        $segments = explode('\\', $policyClass);
+        $last = array_pop($segments);
 
-        if (str_ends_with($short, 'Policy')) {
-            $short = substr($short, 0, -strlen('Policy'));
+        if (str_ends_with($last, 'Policy')) {
+            $last = substr($last, 0, -strlen('Policy'));
         }
 
-        return Str::snake($short);
+        $segments[] = $last;
+
+        return implode('.', array_map(
+            static fn (string $segment): string => Str::snake($segment),
+            $segments,
+        ));
     }
 
     /**

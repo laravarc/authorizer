@@ -5,7 +5,8 @@ declare(strict_types=1);
 namespace Laravarc\Authorizer\Tests\Fixtures\Duplicate;
 
 /**
- * Deliberately maps to the same ability key as CustomerPolicy ("customer").
+ * Shares the class basename with Policies\CustomerPolicy but resolves to a
+ * distinct FQCN-based ability key.
  */
 final class CustomerPolicy
 {

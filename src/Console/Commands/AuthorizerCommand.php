@@ -196,10 +196,17 @@ final class AuthorizerCommand extends Command
 
         try {
             $index = $registry->refresh();
-            $this->components->info(sprintf(
-                'Authorizer ability index cached (%d policies).',
-                count($index['abilities']),
-            ));
+
+            if ($registry->wasSkippedForCore()) {
+                $this->components->warn(
+                    'Core-authored ability cache detected; consumed without writing (core owns policies + gates).',
+                );
+            } else {
+                $this->components->info(sprintf(
+                    'Authorizer ability index cached (%d policies).',
+                    count($index['abilities']),
+                ));
+            }
 
             return self::SUCCESS;
         } catch (AbilityIndexBuildException $exception) {

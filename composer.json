@@ -1,5 +1,6 @@
 {
     "name": "laravarc/authorizer",
+    "version": "3.0.0",
     "description": "RBAC engine for Laravel — Gate::before abilities, roles, and tenant-scoped authorization. Usable with or without laravarc/core.",
     "type": "library",
     "license": "MIT",

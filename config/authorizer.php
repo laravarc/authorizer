@@ -6,17 +6,6 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Ability index cache
-    |--------------------------------------------------------------------------
-    |
-    | Built by `php artisan laravarc:authorizer cache`. Runtime reads this file when
-    | present; otherwise abilities are discovered in-memory from scan paths.
-    |
-    */
-    'cache_path' => base_path('bootstrap/cache/authorizer-abilities.php'),
-
-    /*
-    |--------------------------------------------------------------------------
     | Discovery (native mode — no laravarc/core)
     |--------------------------------------------------------------------------
     |

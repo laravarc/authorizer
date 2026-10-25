@@ -5,6 +5,33 @@ All notable changes to `laravarc/authorizer` are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+## [3.0.0] - 2026-10-25
+
+### Added
+
+- `larc_user_abilities.tenant_id` (nullable) and `effect` (`allow` / `deny`, required);
+  unique on `(user_id, ability_id, tenant_id)`. `AuthorizationService::denyUser()`,
+  `setUserAbilityEffect()`, and tenant-aware resolution in `HasAuthorizerAbilities`.
+- `Support\Enums\UserAbilityEffect`.
+- `Support\KeyIdentifier` (`fromClass`, `fromPath`) with unit tests; policy discovery uses
+  the same convention as `laravarc/core`.
+- Tests: `AuthorizerCommandTest` (core-authored cache CLI), legacy schema v0 rejection,
+  `AbilitySyncService` diff against core fixture, mtime unchanged on skip-write.
+
+### Changed
+
+- **BREAKING:** Fresh install uses a single create migration (`2026_07_18_000001`) with
+  `uuid` on `larc_abilities` / `larc_roles`; removed upgrade migration
+  `2026_09_10_000001_add_uuid_to_authorizer_tables`.
+- **BREAKING:** Policy keys match `laravarc/core` `KeyIdentifier::fromClass()` (basename
+  keeps `Policy`, e.g. `app.policies.customer_policy`). Re-run `laravarc:authorizer cache`
+  and update `larc_abilities.policy` / grants that reference dotted policy prefixes.
+- Ability index cache path is locked to
+  `bootstrap/cache/laravarc/authorizer-abilities.php` via `CachePath`; the
+  `authorizer.cache_path` config key was removed.
+
 ## [2.0.0] - 2026-10-12
 
 ### Changed

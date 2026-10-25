@@ -6,11 +6,19 @@ namespace Laravarc\Authorizer\Tests;
 
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravarc\Authorizer\Providers\AuthorizerServiceProvider;
+use Laravarc\Authorizer\Support\CachePath;
 use Orchestra\Testbench\TestCase as Orchestra;
 
 abstract class TestCase extends Orchestra
 {
     use RefreshDatabase;
+
+    protected function tearDown(): void
+    {
+        CachePath::useBaseDirectory(null);
+
+        parent::tearDown();
+    }
 
     protected function getPackageProviders($app): array
     {
@@ -21,6 +29,10 @@ abstract class TestCase extends Orchestra
 
     protected function defineEnvironment($app): void
     {
+        $cacheDirectory = sys_get_temp_dir().'/authorizer-cache-tests-'.uniqid('', true);
+        mkdir($cacheDirectory, 0777, true);
+        CachePath::useBaseDirectory($cacheDirectory);
+
         $app['config']->set('database.default', 'testing');
 
         if (extension_loaded('pdo_sqlite')) {
@@ -53,10 +65,6 @@ abstract class TestCase extends Orchestra
         $app['config']->set('authorizer.exclude_namespaces', [
             'Laravarc\\Authorizer\\Tests\\Fixtures\\Duplicate\\',
         ]);
-        $app['config']->set(
-            'authorizer.cache_path',
-            sys_get_temp_dir().'/authorizer-abilities-'.uniqid('', true).'.php',
-        );
         $app['config']->set('authorizer.user_model', \Laravarc\Authorizer\Tests\Fixtures\User::class);
     }
 

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Laravarc\Authorizer\Concerns;
 
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Support\Facades\DB;
 use Laravarc\Authorizer\Contracts\TenantResolver;
 use Laravarc\Authorizer\Models\Ability;
 use Laravarc\Authorizer\Models\Role;
 use Laravarc\Authorizer\Models\UserRole;
+use Laravarc\Authorizer\Support\Enums\UserAbilityEffect;
 
 /**
  * Optional trait for the application's User model.
@@ -40,7 +42,7 @@ trait HasAuthorizerAbilities
             'larc_user_abilities',
             'user_id',
             'ability_id',
-        );
+        )->withPivot(['tenant_id', 'effect']);
     }
 
     public function isSuper(): bool
@@ -76,7 +78,13 @@ trait HasAuthorizerAbilities
 
         $userId = $this->getKey();
 
-        if ($this->authorizerAbilities()->whereKey($abilityId)->exists()) {
+        $override = $this->resolveUserAbilityOverride($userId, (int) $abilityId);
+
+        if ($override === false) {
+            return false;
+        }
+
+        if ($override === true) {
             return true;
         }
 
@@ -95,6 +103,34 @@ trait HasAuthorizerAbilities
         }
 
         return $query->exists();
+    }
+
+    /**
+     * @return bool|null  true = allow override, false = deny override, null = no override
+     */
+    private function resolveUserAbilityOverride(int|string $userId, int $abilityId): ?bool
+    {
+        $tenantId = $this->resolveAuthorizerTenantId();
+
+        $base = DB::table('larc_user_abilities')
+            ->where('user_id', $userId)
+            ->where('ability_id', $abilityId);
+
+        if ($tenantId !== null) {
+            $scoped = (clone $base)->where('tenant_id', (string) $tenantId)->first(['effect']);
+
+            if ($scoped !== null) {
+                return UserAbilityEffect::from($scoped->effect) === UserAbilityEffect::Allow;
+            }
+        }
+
+        $global = (clone $base)->whereNull('tenant_id')->first(['effect']);
+
+        if ($global !== null) {
+            return UserAbilityEffect::from($global->effect) === UserAbilityEffect::Allow;
+        }
+
+        return null;
     }
 
     /**

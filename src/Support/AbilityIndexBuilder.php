@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Laravarc\Authorizer\Support;
 
-use Illuminate\Support\Str;
 use RecursiveDirectoryIterator;
 use RecursiveIteratorIterator;
 use ReflectionClass;
@@ -15,9 +14,8 @@ use Throwable;
 /**
  * Discovers Policy classes and builds ability_key => methods (+ class maps).
  *
- * Native convention: the full FQCN in dotted snake_case, with the trailing
- * "Policy" removed from the final segment (e.g. App\Policies\CustomerPolicy
- * → "app.policies.customer"). FQCNs are globally unique, so keys never collide.
+ * Native convention: the full FQCN in dotted snake_case via KeyIdentifier::fromClass
+ * (e.g. App\Policies\CustomerPolicy → app.policies.customer_policy).
  * Does not use module namespaces (Core-specific).
  */
 final class AbilityIndexBuilder
@@ -97,19 +95,7 @@ final class AbilityIndexBuilder
      */
     public function abilityKeyFromPolicy(string $policyClass): string
     {
-        $segments = explode('\\', $policyClass);
-        $last = array_pop($segments);
-
-        if (str_ends_with($last, 'Policy')) {
-            $last = substr($last, 0, -strlen('Policy'));
-        }
-
-        $segments[] = $last;
-
-        return implode('.', array_map(
-            static fn (string $segment): string => Str::snake($segment),
-            $segments,
-        ));
+        return KeyIdentifier::fromClass($policyClass);
     }
 
     /**

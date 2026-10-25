@@ -13,14 +13,15 @@ Works in any Laravel 10–13 application, with or without `laravarc/core`.
 
 ## Ability keys
 
-An ability key is the policy FQCN in dotted snake-case with the trailing `Policy` removed:
+An ability key is the policy FQCN in dotted snake-case via `Support\KeyIdentifier::fromClass`
+(basename keeps the `Policy` suffix):
 
 | Policy class | Key |
 |--------------|-----|
-| `App\Policies\CustomerPolicy` | `app.policies.customer` |
-| `App\Modules\Admin\User\Policies\UserPolicy` | `app.modules.admin.user.policies.user` |
+| `App\Policies\CustomerPolicy` | `app.policies.customer_policy` |
+| `App\Modules\Admin\User\Policies\UserPolicy` | `app.modules.admin.user.policies.user_policy` |
 
-The stored full key is `<policy-key>.<method>` (e.g. `app.policies.customer.delete`). Keys come
+The stored full key is `<policy-key>.<method>` (e.g. `app.policies.customer_policy.delete`). Keys come
 from the FQCN, so they are globally unique and never collide — even when two policies share a
 basename in different namespaces.
 
@@ -34,6 +35,17 @@ php artisan laravarc:authorizer install
 php artisan laravarc:authorizer cache
 php artisan laravarc:authorizer sync
 ```
+
+The compiled ability index is always written to
+`bootstrap/cache/laravarc/authorizer-abilities.php` (same file Laravarc Core uses
+when both packages are installed). The path is not configurable.
+
+**Shared file ownership:** if the file says `generated_by = laravarc core`, Authorizer
+must not overwrite it (`laravarc:authorizer cache` consumes and warns). If Authorizer
+generated the file (`laravarc authorizer`), `laravarc:cache build` may replace the entire
+file and set `generated_by` to `laravarc core` plus `gates`. Authorizer never builds
+`gates` from policy scan; it only preserves an existing `gates` array when it writes
+`policies`.
 
 Add the trait to your user model:
 
@@ -115,6 +127,8 @@ $this->app->singleton(TenantResolver::class, CompanyTenantResolver::class);
 ```
 
 `null` from `current()` means global (single-tenant) roles and leaves `hasAbility()` on the union-all path. When `current()` returns a non-null id, `hasAbility()` only counts role grants for roles with that `tenant_id` (`is_super` still bypasses; NULL-tenant non-super roles do not match). Role name uniqueness is enforced in the service layer (SQL `UNIQUE` alone is unsafe with `NULL` tenant_id).
+
+User-specific overrides live in `larc_user_abilities` with `effect` (`allow` / `deny`, required) and optional `tenant_id` (NULL = global override). Resolution order: tenant-scoped row for `TenantResolver::current()`, then global row, then role grants. Deny wins over role allow at the same scope. Unique on `(user_id, ability_id, tenant_id)`.
 
 ## Core integration (optional)
 

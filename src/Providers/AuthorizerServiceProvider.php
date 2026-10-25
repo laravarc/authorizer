@@ -17,6 +17,7 @@ use Laravarc\Authorizer\RoleFactory;
 use Laravarc\Authorizer\Services\AbilitySyncService;
 use Laravarc\Authorizer\Services\AuthorizationService;
 use Laravarc\Authorizer\Support\AbilityIndexBuilder;
+use Laravarc\Authorizer\Support\CachePath;
 use Laravarc\Authorizer\Support\NullTenantResolver;
 
 final class AuthorizerServiceProvider extends ServiceProvider
@@ -39,7 +40,7 @@ final class AuthorizerServiceProvider extends ServiceProvider
             return new ClassMapAbilityRegistry(
                 builder: $app->make(AbilityIndexBuilder::class),
                 files: $app->make('files'),
-                cachePath: (string) config('authorizer.cache_path'),
+                cachePath: CachePath::abilities(),
             );
         });
 

@@ -11,6 +11,7 @@ use Laravarc\Authorizer\Contracts\AbilityRegistry;
 use Laravarc\Authorizer\Contracts\TenantResolver;
 use Laravarc\Authorizer\Models\Ability;
 use Laravarc\Authorizer\Models\Role;
+use Laravarc\Authorizer\Support\Enums\UserAbilityEffect;
 use RuntimeException;
 
 final class AuthorizationService
@@ -108,18 +109,127 @@ final class AuthorizationService
      * @param  list<string>|null  $only
      * @param  list<string>|null  $except
      */
-    public function allowUser(object $user, string $policyClass, ?array $only = null, ?array $except = null): void
-    {
-        DB::transaction(function () use ($user, $policyClass, $only, $except): void {
+    public function allowUser(
+        object $user,
+        string $policyClass,
+        ?array $only = null,
+        ?array $except = null,
+        int|string|null $tenantId = null,
+    ): void {
+        $this->setUserPolicyAbilities(
+            user: $user,
+            policyClass: $policyClass,
+            effect: UserAbilityEffect::Allow,
+            only: $only,
+            except: $except,
+            tenantId: $tenantId,
+        );
+    }
+
+    public function denyUser(
+        object $user,
+        string $policyClass,
+        ?array $only = null,
+        ?array $except = null,
+        int|string|null $tenantId = null,
+    ): void {
+        $this->setUserPolicyAbilities(
+            user: $user,
+            policyClass: $policyClass,
+            effect: UserAbilityEffect::Deny,
+            only: $only,
+            except: $except,
+            tenantId: $tenantId,
+        );
+    }
+
+    /**
+     * @param  object{getKey(): mixed}  $user
+     */
+    public function setUserAbilityEffect(
+        object $user,
+        int $abilityId,
+        UserAbilityEffect $effect,
+        int|string|null $tenantId = null,
+    ): void {
+        $tenantId = $this->normalizeUserAbilityTenantId($tenantId);
+
+        if ($tenantId === null) {
+            $this->upsertGlobalUserAbilityEffect($user->getKey(), $abilityId, $effect);
+
+            return;
+        }
+
+        DB::table('larc_user_abilities')->upsert(
+            [[
+                'user_id' => $user->getKey(),
+                'ability_id' => $abilityId,
+                'tenant_id' => $tenantId,
+                'effect' => $effect->value,
+            ]],
+            ['user_id', 'ability_id', 'tenant_id'],
+            ['effect'],
+        );
+    }
+
+    /**
+     * UNIQUE (user_id, ability_id, tenant_id) treats NULL as distinct in MySQL/SQLite,
+     * so upsert cannot collapse duplicate global rows — update-or-insert instead.
+     */
+    private function upsertGlobalUserAbilityEffect(
+        int|string $userId,
+        int $abilityId,
+        UserAbilityEffect $effect,
+    ): void {
+        DB::transaction(function () use ($userId, $abilityId, $effect): void {
+            DB::table('larc_user_abilities')
+                ->where('user_id', $userId)
+                ->where('ability_id', $abilityId)
+                ->whereNull('tenant_id')
+                ->delete();
+
+            DB::table('larc_user_abilities')->insert([
+                'user_id' => $userId,
+                'ability_id' => $abilityId,
+                'tenant_id' => null,
+                'effect' => $effect->value,
+            ]);
+        });
+    }
+
+    /**
+     * @param  object{getKey(): mixed}  $user
+     * @param  class-string  $policyClass
+     * @param  list<string>|null  $only
+     * @param  list<string>|null  $except
+     */
+    private function setUserPolicyAbilities(
+        object $user,
+        string $policyClass,
+        UserAbilityEffect $effect,
+        ?array $only,
+        ?array $except,
+        int|string|null $tenantId,
+    ): void {
+        DB::transaction(function () use ($user, $policyClass, $effect, $only, $except, $tenantId): void {
             $abilityIds = $this->resolveAbilityIds($policyClass, $only, $except);
+            $tenantId = $this->normalizeUserAbilityTenantId($tenantId);
 
             foreach ($abilityIds as $abilityId) {
-                DB::table('larc_user_abilities')->insertOrIgnore([
-                    'user_id' => $user->getKey(),
-                    'ability_id' => $abilityId,
-                ]);
+                $this->setUserAbilityEffect($user, $abilityId, $effect, $tenantId);
             }
         });
+    }
+
+    private function normalizeUserAbilityTenantId(int|string|null $tenantId): ?string
+    {
+        $tenantId ??= $this->tenants->current();
+
+        if ($tenantId === null) {
+            return null;
+        }
+
+        return (string) $tenantId;
     }
 
     /**

@@ -54,9 +54,12 @@ return new class extends Migration
         Schema::create('larc_user_abilities', function (Blueprint $table): void {
             $table->unsignedBigInteger('user_id');
             $table->foreignId('ability_id')->constrained('larc_abilities')->cascadeOnDelete();
+            $table->string('tenant_id')->nullable();
+            $table->string('effect');
 
-            $table->primary(['user_id', 'ability_id']);
+            $table->unique(['user_id', 'ability_id', 'tenant_id']);
             $table->index('user_id');
+            $table->index(['user_id', 'tenant_id']);
         });
     }
 
